@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ぷゆゆたちの絵文字キャッチ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        .glow-text {
+            text-shadow: 0 0 12px rgba(244, 114, 182, 0.6), 0 0 24px rgba(168, 85, 247, 0.4);
+        }
+        .btn-bounce {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-center items-center relative overflow-hidden bg-slate-950">
+
+    <!-- Canvas Container -->
+    <div id="game-container" class="relative w-full max-w-lg h-full max-h-[850px] sm:rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-800 bg-slate-900 flex flex-col">
+        
+        <!-- Header Info Bar -->
+        <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-10 pointer-events-none opacity-0 transition-opacity duration-300">
+            <!-- Score & Combo -->
+            <div class="flex flex-col">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">SCORE</div>
+                <div id="score-text" class="text-3xl font-black text-amber-300 drop-shadow">0</div>
+                <div id="combo-text" class="text-xs font-extrabold text-pink-400 opacity-0 transition-opacity">0 COMBO!</div>
+            </div>
+            
+            <!-- Fever Indicator -->
+            <div id="fever-badge" class="px-3 py-1 bg-gradient-to-r from-red-500 via-pink-500 to-yellow-400 rounded-full text-white font-black text-xs animate-bounce hidden shadow-lg">
+                ✨ 赤貝FEVER! ✨
+            </div>
+
+            <!-- Timer -->
+            <div class="flex flex-col items-end">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">TIME</div>
+                <div id="timer-text" class="text-3xl font-black text-cyan-400 drop-shadow">30</div>
+            </div>
+        </div>
+
+        <!-- Main Canvas -->
+        <canvas id="gameCanvas" class="w-full h-full"></canvas>
+
+        <!-- START SCREEN OVERLAY -->
+        <div id="start-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-between p-6 bg-slate-950/90 backdrop-blur-md">
+            <div class="w-full text-center mt-6">
+                <div class="inline-block px-4 py-1 rounded-full bg-pink-500/20 border border-pink-500/40 text-pink-300 text-xs font-bold mb-3">
+                    わいわい絵文字ゲーム 🥺😳🤥😁
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-black text-white glow-text leading-snug">
+                    ぷゆゆたちの<br><span class="text-pink-400">絵文字キャッチ</span>
+                </h1>
+            </div>
+
+            <!-- Rules / Characters info -->
+            <div class="w-full bg-slate-900/80 border border-slate-800 rounded-2xl p-4 my-auto space-y-2 text-sm">
+                <div class="text-xs font-bold text-slate-400 border-b border-slate-800 pb-1 mb-2 text-center">キャラクター紹介</div>
+                <div class="flex items-center justify-between bg-slate-800/50 p-2 rounded-xl">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">🥺</span>
+                        <span class="font-bold text-pink-300">ぷゆゆ</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-400">+10点</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800/50 p-2 rounded-xl">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">😳</span>
+                        <span class="font-bold text-rose-300">ぺゆゆ</span>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-400">+20点 (照れてる!)</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800/50 p-2 rounded-xl">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">🤥</span>
+                        <span class="font-bold text-amber-300">ゆめちゃん</span>
+                    </div>
+                    <span class="text-xs font-bold text-rose-400">-15点 (ウソつき注意!)</span>
+                </div>
+                <div class="flex items-center justify-between bg-slate-800/50 p-2 rounded-xl">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">😁</span>
+                        <span class="font-bold text-red-400">赤貝</span>
+                    </div>
+                    <span class="text-xs font-bold text-yellow-300">+50点 & FEVER発動!</span>
+                </div>
+            </div>
+
+            <div class="w-full text-center space-y-3 mb-4">
+                <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white text-xl font-black rounded-2xl shadow-lg shadow-pink-500/30 active:scale-95 transition-all btn-bounce">
+                    ゲームスタート 🚀
+                </button>
+                <div class="text-xs text-slate-400">
+                    <i class="fa-solid fa-hand-pointer mr-1"></i> 画面下部をドラッグしてバケツ移動！
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div id="gameover-screen" class="absolute inset-0 z-20 flex flex-col items-center justify-between p-6 bg-slate-950/95 backdrop-blur-md hidden">
+            <div class="w-full text-center mt-8">
+                <div class="text-sm font-bold text-pink-400 tracking-widest uppercase mb-1">TIME UP!</div>
+                <h2 class="text-3xl font-black text-white glow-text">リザルト</h2>
+            </div>
+
+            <!-- Score Cards -->
+            <div class="w-full space-y-4 my-auto">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center relative overflow-hidden">
+                    <div class="text-xs text-slate-400 font-bold mb-1">最終スコア</div>
+                    <div id="final-score" class="text-5xl font-black text-amber-300 my-1">0</div>
+                    <div id="rank-badge" class="inline-block px-4 py-1 rounded-full text-xs font-black mt-2 bg-pink-500/20 text-pink-300 border border-pink-500/40">
+                        称号: ぷゆゆ見習い
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center bg-slate-900/60 border border-slate-800 rounded-xl p-3 px-4">
+                    <span class="text-xs font-bold text-slate-400">ハイスコア</span>
+                    <span id="high-score" class="text-lg font-black text-cyan-400">0</span>
+                </div>
+
+                <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 text-center">
+                    <p id="rank-comment" class="text-xs text-slate-300 font-medium leading-relaxed">
+                        「ぷゆゆ🥺がこっちを見ている…！」
+                    </p>
+                </div>
+            </div>
+
+            <div class="w-full space-y-3 mb-4">
+                <button id="restart-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xl font-black rounded-2xl shadow-lg shadow-emerald-500/30 active:scale-95 transition-all btn-bounce">
+                    もう一度あそぶ 🔄
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Web Audio & Game Script -->
+    <script>
+        // --- Sound Engine (Web Audio API) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playCatch() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.1); // A5
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playSpecialCatch() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+                osc.frequency.exponentialRampToValueAtTime(1046.50, this.ctx.currentTime + 0.15); // C6
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playHurt() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime); // A3
+                osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.15); // A2
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playFever() {
+                if (!this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C E G C
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + index * 0.05);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime + index * 0.05);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + index * 0.05 + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + index * 0.05);
+                    osc.stop(this.ctx.currentTime + index * 0.05 + 0.1);
+                });
+            }
+
+            playGameOver() {
+                if (!this.ctx) return;
+                const notes = [440, 415.30, 392.00, 349.23];
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + index * 0.12);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + index * 0.12);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + index * 0.12 + 0.12);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + index * 0.12);
+                    osc.stop(this.ctx.currentTime + index * 0.12 + 0.12);
+                });
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // --- Game Logic ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        // UI Elements
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const hud = document.getElementById('hud');
+        const scoreText = document.getElementById('score-text');
+        const comboText = document.getElementById('combo-text');
+        const timerText = document.getElementById('timer-text');
+        const feverBadge = document.getElementById('fever-badge');
+        const finalScoreText = document.getElementById('final-score');
+        const highScoreText = document.getElementById('high-score');
+        const rankBadge = document.getElementById('rank-badge');
+        const rankComment = document.getElementById('rank-comment');
+
+        // Buttons
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // State variables
+        let isGaming = false;
+        let score = 0;
+        let combo = 0;
+        let timeLeft = 30;
+        let timerInterval = null;
+        let feverTimer = 0;
+        let items = [];
+        let particles = [];
+        let floatingTexts = [];
+        let animationFrameId = null;
+
+        // Basket / Player
+        const player = {
+            x: 0,
+            y: 0,
+            width: 90,
+            height: 24,
+            targetX: 0
+        };
+
+        // Emoji Types
+        const EMOJI_TYPES = {
+            PUYUYU: { emoji: '🥺', points: 10, speedMin: 2.5, speedMax: 4.5, chance: 0.45 },
+            PEYUYU: { emoji: '😳', points: 20, speedMin: 3.5, speedMax: 5.5, chance: 0.25 },
+            YUME:   { emoji: '🤥', points: -15, speedMin: 3.0, speedMax: 5.0, chance: 0.20, isBad: true },
+            AKAGAI: { emoji: '😁', points: 50, speedMin: 5.0, speedMax: 7.0, chance: 0.10, isSpecial: true }
+        };
+
+        // Resize Canvas
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            player.y = canvas.height - 60;
+            if (!isGaming) {
+                player.x = canvas.width / 2 - player.width / 2;
+                player.targetX = player.x;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Control handlers
+        function updatePlayerPosition(clientX) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = clientX - rect.left;
+            player.targetX = mouseX - player.width / 2;
+        }
+
+        canvas.addEventListener('mousemove', (e) => updatePlayerPosition(e.clientX));
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                updatePlayerPosition(e.touches[0].clientX);
+            }
+        }, { passive: true });
+
+        // Item Spawning
+        function spawnItem() {
+            const rand = Math.random();
+            let cumulative = 0;
+            let selectedType = EMOJI_TYPES.PUYUYU;
+
+            if (feverTimer > 0) {
+                if (Math.random() < 0.4) {
+                    selectedType = EMOJI_TYPES.AKAGAI;
+                } else if (Math.random() < 0.8) {
+                    selectedType = EMOJI_TYPES.PEYUYU;
+                } else {
+                    selectedType = EMOJI_TYPES.PUYUYU;
+                }
+            } else {
+                for (const key in EMOJI_TYPES) {
+                    cumulative += EMOJI_TYPES[key].chance;
+                    if (rand <= cumulative) {
+                        selectedType = EMOJI_TYPES[key];
+                        break;
+                    }
+                }
+            }
+
+            const size = 36;
+            const x = Math.random() * (canvas.width - size);
+            const speed = selectedType.speedMin + Math.random() * (selectedType.speedMax - selectedType.speedMin);
+
+            items.push({
+                x: x,
+                y: -size,
+                size: size,
+                emoji: selectedType.emoji,
+                points: selectedType.points,
+                speed: speed,
+                isBad: selectedType.isBad || false,
+                isSpecial: selectedType.isSpecial || false,
+                rotation: (Math.random() - 0.5) * 0.2
+            });
+        }
+
+        // Particle System
+        function createParticles(x, y, color, count = 8) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1.0,
+                    color: color,
+                    size: 3 + Math.random() * 4
+                });
+            }
+        }
+
+        // Floating Text System
+        function createFloatingText(x, y, text, color) {
+            floatingTexts.push({
+                x: x,
+                y: y,
+                text: text,
+                color: color,
+                life: 1.0,
+                vy: -1.5
+            });
+        }
+
+        // Start Game
+        function startGame() {
+            sound.init();
+            score = 0;
+            combo = 0;
+            timeLeft = 30;
+            feverTimer = 0;
+            items = [];
+            particles = [];
+            floatingTexts = [];
+
+            scoreText.textContent = score;
+            timerText.textContent = timeLeft;
+            comboText.classList.add('opacity-0');
+            feverBadge.classList.add('hidden');
+
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            hud.classList.remove('opacity-0');
+
+            isGaming = true;
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isGaming) return;
+                timeLeft--;
+                timerText.textContent = timeLeft;
+
+                if (feverTimer > 0) {
+                    feverTimer--;
+                    if (feverTimer === 0) {
+                        feverBadge.classList.add('hidden');
+                    }
+                }
+
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+
+            let lastSpawn = 0;
+            function loop(timestamp) {
+                if (!isGaming) return;
+
+                const spawnInterval = feverTimer > 0 ? 250 : 500;
+                if (timestamp - lastSpawn > spawnInterval) {
+                    spawnItem();
+                    lastSpawn = timestamp;
+                }
+
+                update();
+                render();
+
+                animationFrameId = requestAnimationFrame(loop);
+            }
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        // Update Game State
+        function update() {
+            player.x += (player.targetX - player.x) * 0.3;
+            if (player.x < 0) player.x = 0;
+            if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.y += item.speed * (feverTimer > 0 ? 1.2 : 1.0);
+
+                const pRect = {
+                    left: player.x,
+                    right: player.x + player.width,
+                    top: player.y,
+                    bottom: player.y + player.height
+                };
+
+                const itemCenter = {
+                    x: item.x + item.size / 2,
+                    y: item.y + item.size / 2
+                };
+
+                if (
+                    itemCenter.x >= pRect.left &&
+                    itemCenter.x <= pRect.right &&
+                    itemCenter.y >= pRect.top &&
+                    itemCenter.y <= pRect.bottom
+                ) {
+                    if (item.isBad) {
+                        combo = 0;
+                        comboText.classList.add('opacity-0');
+                        score += item.points;
+                        if (score < 0) score = 0;
+                        sound.playHurt();
+                        createParticles(itemCenter.x, itemCenter.y, '#f43f5e', 12);
+                        createFloatingText(itemCenter.x, itemCenter.y, `${item.points}`, '#f43f5e');
+                    } else {
+                        combo++;
+                        const comboBonus = Math.floor(combo / 5) * 5;
+                        const totalPoints = item.points + comboBonus;
+                        score += totalPoints;
+
+                        if (combo >= 3) {
+                            comboText.textContent = `${combo} COMBO!`;
+                            comboText.classList.remove('opacity-0');
+                        }
+
+                        if (item.isSpecial) {
+                            sound.playFever();
+                            feverTimer = 5;
+                            feverBadge.classList.remove('hidden');
+                            createParticles(itemCenter.x, itemCenter.y, '#fbbf24', 20);
+                            createFloatingText(itemCenter.x, itemCenter.y, `赤貝FEVER! +${totalPoints}`, '#fbbf24');
+                        } else if (item.points === 20) {
+                            sound.playSpecialCatch();
+                            createParticles(itemCenter.x, itemCenter.y, '#f472b6', 10);
+                            createFloatingText(itemCenter.x, itemCenter.y, `+${totalPoints}`, '#f472b6');
+                        } else {
+                            sound.playCatch();
+                            createParticles(itemCenter.x, itemCenter.y, '#38bdf8', 8);
+                            createFloatingText(itemCenter.x, itemCenter.y, `+${totalPoints}`, '#38bdf8');
+                        }
+                    }
+
+                    scoreText.textContent = score;
+                    items.splice(i, 1);
+                    continue;
+                }
+
+                if (item.y > canvas.height + 50) {
+                    items.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.04;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.life -= 0.025;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        // Render Frame
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (feverTimer > 0) {
+                const glowGradient = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 50,
+                    canvas.width / 2, canvas.height / 2, canvas.width
+                );
+                glowGradient.addColorStop(0, 'rgba(244, 63, 94, 0.15)');
+                glowGradient.addColorStop(1, 'rgba(15, 23, 42, 0)');
+                ctx.fillStyle = glowGradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            const paddleGlow = feverTimer > 0 ? '#f43f5e' : '#38bdf8';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = paddleGlow;
+            
+            const radius = 12;
+            ctx.fillStyle = feverTimer > 0 ? '#fb7185' : '#38bdf8';
+            ctx.beginPath();
+            ctx.roundRect(player.x, player.y, player.width, player.height, radius);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(player.x + 4, player.y + 3, player.width - 8, 4, 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(feverTimer > 0 ? '🔥' : '🧺', player.x + player.width / 2, player.y + player.height / 2);
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            items.forEach(item => {
+                ctx.save();
+                ctx.translate(item.x + item.size / 2, item.y + item.size / 2);
+                ctx.font = `${item.size}px sans-serif`;
+
+                if (item.isSpecial) {
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#fbbf24';
+                }
+                ctx.fillText(item.emoji, 0, 0);
+                ctx.restore();
+            });
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = ft.life;
+                ctx.font = '900 18px "M PLUS Rounded 1c"';
+                ctx.fillStyle = ft.color;
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#000000';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            });
+        }
+
+        // End Game
+        function endGame() {
+            isGaming = false;
+            clearInterval(timerInterval);
+            cancelAnimationFrame(animationFrameId);
+
+            sound.playGameOver();
+
+            const currentHigh = parseInt(localStorage.getItem('puyuyu_highscore') || '0', 10);
+            if (score > currentHigh) {
+                localStorage.setItem('puyuyu_highscore', score);
+                highScoreText.textContent = score;
+            } else {
+                highScoreText.textContent = currentHigh;
+            }
+
+            finalScoreText.textContent = score;
+
+            let rank = 'ぷゆゆの見習い';
+            let comment = '「ぷゆゆ🥺がこっちをじーっと見つめている…！」';
+
+            if (score >= 800) {
+                rank = '👑 赤貝ゴッドマスター 👑';
+                comment = '「凄まじい手さばき！赤貝😁も大感激で踊り狂っています！」';
+            } else if (score >= 500) {
+                rank = '🌟 ぷゆぷゆマスター';
+                comment = '「素晴らしい！ぺゆゆ😳も思わず赤面して大喜び！」';
+            } else if (score >= 300) {
+                rank = '✨ ぴかぴかキャッチャー';
+                comment = '「いい感じ！ゆめちゃん🤥のウソにも惑わされなかったね！」';
+            } else if (score >= 100) {
+                rank = '🌱 駆け出しぷゆゆ';
+                comment = '「まずまずの成果！次はもっと赤貝😁をねらってみよう！」';
+            }
+
+            rankBadge.textContent = `称号: ${rank}`;
+            rankComment.textContent = comment;
+
+            hud.classList.add('opacity-0');
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        highScoreText.textContent = localStorage.getItem('puyuyu_highscore') || '0';
+    </script>
+</body>
+</html>
